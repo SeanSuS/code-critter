@@ -41,7 +41,7 @@ claude plugin install code-critter --marketplace SeanSuS/code-critter
 
 | 指令 | 作用 |
 | --- | --- |
-| `/pet` | 顯示或隱藏寵物 |
+| `/pet` | 顯示或隱藏寵物（按「收合」按鈕則是縮成一行） |
 | `/pet char <名字>` | 切換角色（按鈕列裡也有下拉選單） |
 | `/pet reload` | 重新讀取角色資料夾，並回報錯誤 |
 | `/pet create <描述>` | 請 Claude 畫一隻角色並載入 |

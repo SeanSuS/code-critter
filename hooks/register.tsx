@@ -16,7 +16,7 @@ const LIMIT_HIGH = 90
 const SLEEP_AFTER = 10 * 60_000
 const USER_FOLDER = '.claude/code-critter/characters'
 
-const FRESH: Saved = { mood: 70, moodAt: 0, char: BUILT_IN, lang: 'auto', isMuted: false, isHidden: false, uses: {} }
+const FRESH: Saved = { mood: 70, moodAt: 0, char: BUILT_IN, lang: 'auto', isMuted: false, isHidden: false, isCollapsed: false, uses: {} }
 const saved = atom({ plugin: 'code-critter', key: 'saved' } as const, FRESH)
 const usage = atom({ plugin: 'code-critter', key: 'usage' } as const, { model: '' } as Usage)
 const activity = atom({ plugin: 'code-critter', key: 'activity' } as const, { state: 'idle', seq: 0 } as Activity)
@@ -281,13 +281,34 @@ export const register: Register = on => {
       until(u.sevenDayResets, now, v.locale) && t.resetsIn(t.sevenDay, until(u.sevenDayResets, now, v.locale)),
       u.usd === undefined ? '' : `$${u.usd.toFixed(2)}`,
     ].filter(Boolean).join(' · ')
+    const toggle = (
+      <Button key="toggle" onPress={() => change($, p => ({ ...p, isCollapsed: !p.isCollapsed }))}>{s.isCollapsed ? t.expand : t.collapse}</Button>
+    )
+    const compact = hasCompactNudge && <Button key="nudge-run" variant="primary" onPress={() => run($, 'compact')}>{t.runCompact}</Button>
+    // Collapsed, the pet is one line: the figures as text, and the nudge if there is one.
+    if (s.isCollapsed) {
+      const figures = [
+        u.context === undefined ? '' : `ctx ${Math.round(u.context)}%`,
+        u.fiveHour === undefined ? '' : `5h ${Math.round(u.fiveHour)}%`,
+        u.sevenDay === undefined ? '' : `7d ${Math.round(u.sevenDay)}%`,
+        u.model,
+      ].filter(Boolean).join(' · ')
+      return (
+        <Box gap={1}>
+          {toggle}
+          <Text dimColor>🐒 {figures}</Text>
+          {compact}
+        </Box>
+      )
+    }
     const commands = recommend(s.uses, now, u.context)
     const character = characters.get(s.char) ?? characters.get(BUILT_IN)
 
     const controls = (
       <Box flexDirection="column">
         <Box gap={1} flexWrap="wrap">
-          {hasCompactNudge && <Button key="nudge-run" variant="primary" onPress={() => run($, 'compact')}>{t.runCompact}</Button>}
+          {toggle}
+          {compact}
           {nudge !== undefined && (
             <Button key="nudge-dismiss" onPress={async () => { await update($, view, w => (hasCompactNudge ? { ...w, isContextDismissed: true } : { ...w, isLimitDismissed: true })) }}>{t.dismiss}</Button>
           )}

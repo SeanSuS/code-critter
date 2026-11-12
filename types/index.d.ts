@@ -6,6 +6,7 @@ export type Saved = {
   lang: 'auto' | 'en' | 'zh-TW'
   isMuted: boolean
   isHidden: boolean
+  isCollapsed: boolean
   uses: Record<string, { score: number; at: number }>
 }
 

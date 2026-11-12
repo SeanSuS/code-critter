@@ -41,7 +41,7 @@ The animated scene is drawn in the desktop app's Code tab. A terminal shows the 
 
 | Command | What it does |
 | --- | --- |
-| `/pet` | Show or hide the pet |
+| `/pet` | Show or hide the pet (the **Collapse** button shrinks it to one line instead) |
 | `/pet char <name>` | Switch character (also a picker in the row of buttons) |
 | `/pet reload` | Re-read the character folders and report any errors |
 | `/pet create <description>` | Ask Claude to draw a character and load it |

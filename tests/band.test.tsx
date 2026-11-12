@@ -233,6 +233,22 @@ test('/pet hides and shows the band, and the choice is kept', async ($, on) => {
   await shown.unmount()
 })
 
+test('the band collapses to one line of figures and expands again; the choice is kept', async ($, on) => {
+  const w = world(on, { usage: { context: { window: 200000, percent: 85 }, rateLimits: [{ kind: 'five_hour', percentUsed: 30 }] } })
+  await start($)
+  const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  await ui.press({ key: 'toggle' })
+  expect((w.store.get('pet') as { isCollapsed: boolean }).isCollapsed).toBe(true)
+  expect(await ui.find({ type: 'Svg' })).toBeUndefined()
+  expect(await ui.find({ key: 'run-model' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /ctx 85% · 5h 30% · claude-test/ })).toBeDefined()
+  // The nudge still gets through while collapsed.
+  expect(await ui.find({ key: 'nudge-run' })).toBeDefined()
+  await ui.press({ key: 'toggle' })
+  expect(await ui.find({ type: 'Svg' })).toBeDefined()
+  await ui.unmount()
+})
+
 test('/pet create asks Claude to draw a character and loads it when the turn ends', async ($, on) => {
   const w = world(on)
   await start($)

@@ -1,6 +1,6 @@
 {
   "name": "code-critter",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A pixel-art desk pet for Claude Code that mimics what Claude is doing, shows your usage and offers your most-used commands.",
   "author": { "name": "SeanSuS" },
   "license": "MIT",
