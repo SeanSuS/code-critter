@@ -1,11 +1,11 @@
 import { expect, test } from 'claude-code/testing'
 import { pickLocale, strings, until } from '../hooks/i18n'
 
-test('the locale is the choice, else Chinese on a Chinese system, else English', async () => {
+test('the locale is the choice, else the system, else Chinese where the system says nothing', async () => {
   expect(pickLocale('en', 'zh_TW.UTF-8')).toBe('en')
   expect(pickLocale('auto', 'zh_TW.UTF-8')).toBe('zh-TW')
   expect(pickLocale('auto', 'en_US.UTF-8')).toBe('en')
-  expect(pickLocale('auto', undefined)).toBe('en')
+  expect(pickLocale('auto', undefined)).toBe('zh-TW')
 })
 
 test('both locales have every string', async () => {

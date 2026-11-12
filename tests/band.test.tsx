@@ -2,9 +2,9 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { Engine, MockClock } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-const PANE = {
-  plugin: 'code-critter', component: 'Pane', requestId: 'critter',
-  props: { title: 'Critter', isFocused: false, bodyColumns: 40, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} },
+const BAND = {
+  plugin: 'code-critter', component: 'AbovePrompt',
+  props: { hasSurvey: false, isCollapsed: false, isWorking: false, maxRows: 20, bodyColumns: 80, scroll: { offset: 0, bodyRows: 20 }, view: {} },
 } as const
 
 const row = 'k'.repeat(16)
@@ -19,8 +19,6 @@ type World = {
   store: Map<string, unknown>
   ran: string[]
   prompts: string[]
-  opened: string[]
-  closed: string[]
   statuses: (string | undefined)[]
   env: Record<string, string>
   usage: { context: { window: number; percent?: number }; rateLimits: { kind: string; percentUsed: number; resetsAt?: string }[]; cost?: { usd: number } }
@@ -31,8 +29,8 @@ type World = {
 function world(on: On, seed: Partial<World> = {}): World {
   const w: World = {
     mod: { monkey: blob('monkey') }, mine: {},
-    store: new Map(), ran: [], prompts: [], opened: [], closed: [], statuses: [],
-    env: { HOME: '/home/u' },
+    store: new Map(), ran: [], prompts: [], statuses: [],
+    env: { HOME: '/home/u', LANG: 'en_US.UTF-8' },
     usage: { context: { window: 200000 }, rateLimits: [] },
     clock: mock.clock(on, { now: Date.parse('2026-01-01T00:00:00Z') }),
     ...seed,
@@ -52,9 +50,6 @@ function world(on: On, seed: Partial<World> = {}): World {
   on('command.register', (_, e) => ({ value: { command: e.name } }))
   on('command.run', (_, e) => { w.ran.push(e.command); return { text: 'ok' } })
   on('prompt.submit', (_, e) => { w.prompts.push(e.text); return { text: e.text } })
-  on('ui.open', (_, e) => { w.opened.push(e.id); return { value: { isPlaced: true } } })
-  on('ui.close', (_, e) => { w.closed.push(e.id); return { value: undefined } })
-  on('ui.panes', () => ({ value: w.opened.filter(id => !w.closed.includes(id)).map(id => ({ id, title: 'Critter', isShown: true, isFocused: false, isPlaced: true })) }))
   on('ui.status', (_, e) => { w.statuses.push(e.text); return { value: undefined } })
   on('ui.toast', () => ({ value: undefined }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
@@ -71,13 +66,12 @@ const typed = ($: Engine, command: string, args = '') => $.command.run({ command
 const measure = ($: Engine, w: World) => $.session.measure({ ...w.usage, changed: ['context'] })
 const svg = async (ui: { find: (q: { type: 'Svg' }) => Promise<unknown> }) => JSON.stringify(await ui.find({ type: 'Svg' }))
 
-test('the pane opens at the start and draws the pet, usage and six default commands', async ($, on) => {
+test('the band draws the pet, usage and six default commands above the prompt', async ($, on) => {
   const w = world(on, { usage: { context: { window: 200000, percent: 42 }, rateLimits: [{ kind: 'five_hour', percentUsed: 30 }, { kind: 'seven_day', percentUsed: 12 }] } })
   await start($)
-  expect(w.opened).toEqual(['critter'])
   expect(w.statuses.at(-1)).toBe('🐒 ctx 42% · 5h 30%')
 
-  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
   const picture = await svg(ui)
   expect(picture).toContain('ctx 42%')
   expect(picture).toContain('5h 30%')
@@ -88,15 +82,16 @@ test('the pane opens at the start and draws the pet, usage and six default comma
   await ui.unmount()
 
   // A terminal has no Svg: the controls alone.
-  const term = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await term.find({ key: 'feed' })).toBeDefined()
+  const term = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await term.find({ type: 'Svg' })).toBeUndefined()
+  expect(await term.find({ key: 'run-compact' })).toBeDefined()
   await term.unmount()
 })
 
 test('a command button runs the command at once and counts it; /clear takes two presses', async ($, on) => {
   const w = world(on)
   await start($)
-  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
 
   await ui.press({ key: 'run-model' })
   expect(w.ran).toEqual(['model'])
@@ -125,7 +120,7 @@ test('commands the person types are counted by name and move up the list', async
   expect(uses['deploy']?.score).toBe(2)
   expect(uses['pet']).toBeUndefined()
 
-  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
   expect(await ui.find({ key: 'run-deploy' })).toBeDefined()
   expect(await ui.find({ key: 'run-explain' })).toBeUndefined()
   // The pet repeats the command it just saw.
@@ -136,7 +131,7 @@ test('commands the person types are counted by name and move up the list', async
 test('a nearly full context brings a one-press /compact nudge that can be closed', async ($, on) => {
   const w = world(on, { usage: { context: { window: 200000, percent: 85 }, rateLimits: [] } })
   await start($)
-  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
   expect(await svg(ui)).toContain('Context is nearly')
   await ui.press({ key: 'nudge-run' })
   expect(w.ran).toEqual(['compact'])
@@ -163,26 +158,11 @@ test('a nearly full context brings a one-press /compact nudge that can be closed
 test('a rate limit at 90% is a notice with no command to run', async ($, on) => {
   world(on, { usage: { context: { window: 200000, percent: 10 }, rateLimits: [{ kind: 'five_hour', percentUsed: 93 }] } })
   await start($)
-  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
   expect(await svg(ui)).toContain('5-hour limit is at')
   expect(await ui.find({ key: 'nudge-run' })).toBeUndefined()
   await ui.press({ key: 'nudge-dismiss' })
   expect(await svg(ui)).not.toContain('5-hour limit')
-  await ui.unmount()
-})
-
-test('feeding and petting lift the mood, which is kept across sessions', async ($, on) => {
-  const w = world(on)
-  await start($)
-  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
-  await ui.press({ key: 'feed' })
-  expect((w.store.get('pet') as { mood: number }).mood).toBe(95)
-  expect((await ui.find({ key: 'feed' }))?.text).toBe('Full')
-  // Fed once: a second press inside the cooldown changes nothing.
-  await ui.press({ key: 'feed' })
-  expect((w.store.get('pet') as { mood: number }).mood).toBe(95)
-  await ui.press({ key: 'pet' })
-  expect((w.store.get('pet') as { mood: number }).mood).toBe(97)
   await ui.unmount()
 })
 
@@ -197,7 +177,7 @@ test('a character dropped in the user folder loads on /pet reload; a broken one 
   expect(out.text).toContain('broken: state "idle" frame 1 row 16: 4 chars, expected 16')
   expect(out.text).toContain('garbage: ')
 
-  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
   expect(await ui.find({ type: 'Text', text: /row 16: "z" is not in the palette/ })).toBeDefined()
   expect((await typed($, 'pet', 'char nobody')).text).toContain('No character named "nobody"')
   expect((await typed($, 'pet', 'char blob')).text).toBe('Character: blob.')
@@ -210,7 +190,7 @@ test('a saved character that is gone falls back to the monkey', async ($, on) =>
   const w = world(on)
   w.store.set('pet', { char: 'vanished' })
   await start($)
-  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
   expect(await svg(ui)).toContain('monkey the desk pet')
   await ui.unmount()
 })
@@ -219,38 +199,38 @@ test("the pet acts out Claude's tools, and cheers when the turn ends", async ($,
   const w = world(on)
   let during = ''
   await start($)
-  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
   w.during = async () => { during = await svg(ui) }
   await $.tool.call({ tool: 'Read', file_path: '/x' })
   expect(during).toContain('the desk pet: read')
   expect(await svg(ui)).toContain('the desk pet: think')
   await $.turn.complete({ answer: 'done', durationMs: 1, isAborted: false, turnId: 't', reason: 'answer' })
   expect(await svg(ui)).toContain('the desk pet: happy')
-  expect((w.store.get('pet') as { mood: number }).mood).toBe(71)
+  expect((w.store.get('pet') as { mood: number }).mood).toBe(72)
   await ui.unmount()
 })
 
 test('the language follows /pet lang, and the system when left on auto', async ($, on) => {
-  world(on, { env: { HOME: '/home/u', LANG: 'zh_TW.UTF-8' } })
+  world(on)
   await start($)
-  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
-  expect((await ui.find({ key: 'feed' }))?.text).toBe('餵食')
-  expect((await typed($, 'pet', 'lang en')).text).toBe('Language: en.')
-  expect((await ui.find({ key: 'feed' }))?.text).toBe('Feed')
-  expect((await typed($, 'pet', 'lang klingon')).text).toContain('Usage')
-  await ui.unmount()
+  expect((await typed($, 'pet', 'help')).text).toContain('show or hide')
+  expect((await typed($, 'pet', 'lang zh-TW')).text).toBe('語言：zh-TW。')
+  expect((await typed($, 'pet', 'help')).text).toContain('顯示或隱藏')
+  expect((await typed($, 'pet', 'lang klingon')).text).toContain('用法')
 })
 
-test('/pet hides and shows the pane, and autoopen off keeps it shut at the start', async ($, on) => {
+test('/pet hides and shows the band, and the choice is kept', async ($, on) => {
   const w = world(on)
   await start($)
   expect((await typed($, 'pet')).text).toBe('Pet hidden.')
-  expect(w.closed).toEqual(['critter'])
-  await typed($, 'pet', 'autoopen off')
-  expect((w.store.get('pet') as { isAutoOpen: boolean }).isAutoOpen).toBe(false)
-  w.opened.length = 0
-  await start($)
-  expect(w.opened).toEqual([])
+  expect((w.store.get('pet') as { isHidden: boolean }).isHidden).toBe(true)
+  const hidden = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await hidden.find({ type: 'Svg' })).toBeUndefined()
+  await hidden.unmount()
+  expect((await typed($, 'pet')).text).toBe('Pet shown.')
+  const shown = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await shown.find({ type: 'Svg' })).toBeDefined()
+  await shown.unmount()
 })
 
 test('/pet create asks Claude to draw a character and loads it when the turn ends', async ($, on) => {

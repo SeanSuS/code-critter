@@ -98,7 +98,6 @@ const magnifier = x => g => { ell(g, x, 12, 4, 4, 'g'); ell(g, x, 12, 2.6, 2.6, 
 const pencil = (x, y) => g => { line(g, x, y, x + 4, y - 5, 'y', 2); rect(g, x, y + 1, 1, 1, 'k'); rect(g, x + 4, y - 6, 2, 2, 'p'); rect(g, 6, 27, 12, 4, 's'); line(g, 8, 28, 8 + (x % 5) + 3, 28, 'g') }
 const keyboard = g => { rect(g, 6, 26, 20, 4, 'g'); for (let x = 7; x < 25; x += 2) { set(g, x, 27, 'k'); set(g, x + 1, 28, 'k') } }
 const spyglass = dx => g => { rect(g, 3 + dx, 10, 10, 3, 'y'); rect(g, 2 + dx, 9, 2, 5, 'k'); rect(g, 12 + dx, 10, 2, 3, 'k'); set(g, 4 + dx, 10, 'w') }
-const banana = y => g => { line(g, 17, y + 2, 21, y, 'y', 2); set(g, 22, y - 1, 'd'); set(g, 17, y + 3, 'd') }
 const cloth = x => g => { rect(g, x, 20, 6, 4, 'm'); rect(g, x + 1, 21, 2, 1, 'w'); set(g, x - 2, 19, 'w'); set(g, x + 7, 24, 'w') }
 const sweat = y => g => { set(g, 26, y, 'm'); rect(g, 25, y + 1, 3, 2, 'm'); set(g, 26, y + 1, 'w') }
 const topHat = (g, hy) => { rect(g, 11, 0 + hy, 10, 4, 'k'); rect(g, 11, 3 + hy, 10, 1, 'r'); rect(g, 8, 4 + hy, 16, 1, 'k') }
@@ -117,8 +116,6 @@ const states = {
   happy: { fps: 4, frames: [{ eyes: 'happy', mouth: 'open', left: [6, 14], right: [25, 14], cheeks: true }, { eyes: 'happy', mouth: 'open', left: [5, 12], right: [26, 12], cheeks: true, head: -1, tail: 2 }] },
   sleep: { fps: 1, frames: [{ eyes: 'blink', mouth: 'flat', head: 2, extra: zzz(false) }, { eyes: 'blink', mouth: 'o', head: 3, extra: zzz(true) }] },
   tired: { fps: 1, frames: [{ eyes: 'half', mouth: 'flat', head: 2, extra: sweat(4) }, { eyes: 'half', mouth: 'o', head: 3, extra: sweat(6) }] },
-  petted: { fps: 4, frames: [{ eyes: 'happy', cheeks: true, head: 1 }, { eyes: 'happy', cheeks: true, head: 2, tail: 2 }] },
-  eat: { fps: 3, frames: [{ mouth: 'open', right: [20, 18], extra: banana(15) }, { eyes: 'happy', mouth: 'flat', right: [20, 17], cheeks: true, extra: banana(14) }] },
   sad: { fps: 1, frames: [{ eyes: 'down', mouth: 'frown', head: 2 }, { eyes: 'blink', mouth: 'frown', head: 2 }] },
   read: { fps: 2, frames: [{ mouth: 'o', right: [24, 19], extra: magnifier(19) }, { mouth: 'o', right: [26, 19], extra: magnifier(21) }] },
   write: { fps: 4, frames: [{ eyes: 'down', mouth: 'flat', left: [10, 25], extra: pencil(10, 25) }, { eyes: 'down', mouth: 'flat', left: [13, 25], extra: pencil(13, 25) }] },

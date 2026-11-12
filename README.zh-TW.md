@@ -1,6 +1,6 @@
 # Code Critter
 
-Claude Code 的像素風桌面寵物。牠住在側邊面板裡，會模仿 Claude 正在做的事，把你的用量畫進牠的房間，並把你最常用的 slash 指令做成按鈕，按一下就執行。
+Claude Code 的像素風桌面寵物。牠住在輸入框上方的一條橫幅裡，會模仿 Claude 正在做的事，把你的用量畫進牠的房間，並把你最常用的 slash 指令做成按鈕，按一下就執行。
 
 [English](README.md)
 
@@ -13,10 +13,10 @@ Claude Code 的像素風桌面寵物。牠住在側邊面板裡，會模仿 Clau
 
 - **模仿 Claude。** Claude 讀檔時猴子拿放大鏡，改檔時拿筆，跑指令時敲鍵盤，上網搜尋時拿望遠鏡，啟動 subagent 時變出一隻分身。一輪工作結束牠會歡呼，閒置十分鐘就睡著。
 - **模仿你。** 你輸入 slash 指令，牠會在對話泡泡裡跟著喊：`/compact` 時把自己壓扁，`/clear` 時拿抹布擦畫面，`/model` 時換一頂帽子。
-- **把用量畫進房間。** 桌上的紙堆是 context 用量，牆上的兩串香蕉是 5 小時和 7 天額度的剩餘量。畫面下方那行文字有目前模型、各額度的重置倒數，以及有資料時的費用。
+- **把用量畫進房間。** 桌上的紙堆是 context 用量，牆上的兩串香蕉是 5 小時和 7 天額度的剩餘量。畫面下方那一列有目前模型、各額度的重置倒數，以及有資料時的費用。
 - **只提醒一次。** context 到 80% 時猴子會變累，並給你一個「執行 /compact」按鈕；額度用到 90% 時牠會提醒你。提醒可以關掉，要等數字降下去又升回來才會再出現。`/pet mute` 可以關掉所有泡泡。
 - **推薦你的常用指令。** 六個按鈕放你最常用的 slash 指令，近期使用的權重較高（每 30 天減半）。按下去直接執行，`/clear` 要再按一次確認。
-- **有心情。** 餵食、摸摸和完成工作會讓牠開心，好幾個小時不理牠會變無聊。最糟也只是一隻無聊的猴子，不會死。
+- **有心情。** 一起完成工作會讓牠開心，好幾個小時不理牠會變無聊。最糟也只是一隻無聊的猴子，不會死。
 - **可以加新角色。** 一隻角色一個資料夾、一個 JSON 檔，只有待機動畫是必填。
 
 ## 安裝
@@ -41,24 +41,23 @@ claude plugin install code-critter --marketplace SeanSuS/code-critter
 
 | 指令 | 作用 |
 | --- | --- |
-| `/pet` | 顯示或隱藏面板 |
-| `/pet char <名字>` | 切換角色（面板底部也有下拉選單） |
+| `/pet` | 顯示或隱藏寵物 |
+| `/pet char <名字>` | 切換角色（按鈕列裡也有下拉選單） |
 | `/pet reload` | 重新讀取角色資料夾，並回報錯誤 |
 | `/pet create <描述>` | 請 Claude 畫一隻角色並載入 |
 | `/pet lang en\|zh-TW\|auto` | 介面語言 |
 | `/pet mute` | 關閉或重新開啟對話泡泡 |
-| `/pet autoopen on\|off` | 開始 session 時要不要自動打開面板 |
 | `/pet reset` | 清空指令使用紀錄並重設心情 |
 | `/explain` | 請 Claude 解釋正在處理的程式碼 |
 | `/commit-msg` | 請 Claude 草擬 commit 訊息 |
 
-如果介面沒有自動顯示中文，請輸入 `/pet lang zh-TW`。
+系統沒有回報語言時，介面預設是繁體中文；想用英文請輸入 `/pet lang en`。
 
 ## 加入自己的角色
 
 角色放在 `~/.claude/code-critter/characters/<名字>/character.json`（Windows：`%USERPROFILE%\.claude\code-critter\characters\<名字>\character.json`）。加入後輸入 `/pet reload` 即可，不用重新安裝。
 
-**用 AI 生成。** 在 Claude Code 裡輸入 `/pet create 一隻愛睡覺的藍色貓頭鷹`；或把 [CHARACTER_PROMPT.md](CHARACTER_PROMPT.md) 貼給任何 AI 並附上你的描述，把它的回答存到上面的路徑，再輸入 `/pet reload`。如果某一行長度不對，面板會指出是哪個狀態、第幾格、第幾行，把那段訊息貼回給 AI 修正就好。
+**用 AI 生成。** 在 Claude Code 裡輸入 `/pet create 一隻愛睡覺的藍色貓頭鷹`；或把 [CHARACTER_PROMPT.md](CHARACTER_PROMPT.md) 貼給任何 AI 並附上你的描述，把它的回答存到上面的路徑，再輸入 `/pet reload`。如果某一行長度不對，寵物會指出是哪個狀態、第幾格、第幾行，把那段訊息貼回給 AI 修正就好。
 
 **手動製作。** 角色檔是一組調色盤加上用文字寫的畫格，一個字元代表一個像素，`.` 代表透明：
 

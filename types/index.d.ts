@@ -2,11 +2,10 @@
 export type Saved = {
   mood: number
   moodAt: number
-  fedAt: number
   char: string
   lang: 'auto' | 'en' | 'zh-TW'
   isMuted: boolean
-  isAutoOpen: boolean
+  isHidden: boolean
   uses: Record<string, { score: number; at: number }>
 }
 

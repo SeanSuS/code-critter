@@ -55,7 +55,6 @@ Only `idle` is needed. A state left out falls back as shown, so draw the ones th
 | `sleep` | nothing for ten minutes | `idle` |
 | `tired` | the context window is nearly full | `idle` |
 | `sad` | neglected for a long while | `idle` |
-| `petted`, `eat` | you pressed Pet or Feed | `idle` |
 | `copy` | you ran a slash command | `idle` |
 | `squash`, `wipe`, `hat` | you ran `/compact`, `/clear`, `/model` | `copy` |
 

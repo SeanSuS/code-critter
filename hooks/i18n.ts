@@ -3,12 +3,6 @@ export type Locale = 'en' | 'zh-TW'
 export type Lang = Locale | 'auto'
 
 const EN = {
-  title: 'Critter',
-  pet: 'Pet',
-  feed: 'Feed',
-  full: 'Full',
-  mood: 'Mood',
-  frequent: 'Frequent commands',
   character: 'Character',
   nudgeCompact: 'Context is nearly full. Compact it?',
   runCompact: '▶ Run /compact',
@@ -29,11 +23,10 @@ const EN = {
   reset: 'Usage history and mood were reset.',
   muted: 'Speech bubbles are off.',
   unmuted: 'Speech bubbles are on.',
-  autoOpen: (on: boolean) => `The pane ${on ? 'opens' : 'no longer opens'} when a session starts.`,
   creating: 'Asked Claude to draw it. It loads when the turn ends.',
   createUsage: 'Usage: /pet create <describe your character>',
   created: (names: string) => `Characters loaded: ${names}.`,
-  help: '/pet — show or hide · /pet char <name> · /pet reload · /pet create <description> · /pet lang en|zh-TW|auto · /pet mute · /pet autoopen on|off · /pet reset',
+  help: '/pet — show or hide · /pet char <name> · /pet reload · /pet create <description> · /pet lang en|zh-TW|auto · /pet mute · /pet reset',
   explain: 'Explain the code I am working on: what it does, how it fits together, and anything surprising in it.',
   commitMsg: 'Write a commit message for the staged changes (or for all current changes if nothing is staged). Give me the message only; do not commit.',
   explainDescription: 'Explain the code being worked on',
@@ -43,12 +36,6 @@ const EN = {
 }
 
 const ZH: typeof EN = {
-  title: '小夥伴',
-  pet: '摸摸',
-  feed: '餵食',
-  full: '吃飽了',
-  mood: '心情',
-  frequent: '常用指令',
   character: '角色',
   nudgeCompact: 'context 快滿了，要壓縮一下嗎？',
   runCompact: '▶ 執行 /compact',
@@ -69,11 +56,10 @@ const ZH: typeof EN = {
   reset: '使用紀錄和心情已重設。',
   muted: '對話泡泡已關閉。',
   unmuted: '對話泡泡已開啟。',
-  autoOpen: on => `開始 session 時${on ? '會' : '不會'}自動打開面板。`,
   creating: '已請 Claude 畫角色，這一輪結束後會自動載入。',
   createUsage: '用法：/pet create <描述你的角色>',
   created: names => `已載入角色：${names}。`,
-  help: '/pet：顯示或隱藏 · /pet char <名字> · /pet reload · /pet create <描述> · /pet lang en|zh-TW|auto · /pet mute · /pet autoopen on|off · /pet reset',
+  help: '/pet：顯示或隱藏 · /pet char <名字> · /pet reload · /pet create <描述> · /pet lang en|zh-TW|auto · /pet mute · /pet reset',
   explain: '請解釋我正在處理的程式碼：它做什麼、各部分怎麼組合，以及有哪些出乎意料的地方。',
   commitMsg: '請為已 staged 的改動寫一則 commit 訊息（沒有 staged 的話就用目前所有改動）。只給我訊息，不要執行 commit。',
   explainDescription: '解釋正在處理的程式碼',
@@ -84,10 +70,12 @@ const ZH: typeof EN = {
 
 export const strings = (locale: Locale) => (locale === 'zh-TW' ? ZH : EN)
 
-// The locale to use: the person's choice, else Chinese where the system's is.
+// The locale to use: the person's choice, else the system's. An app started
+// from the desktop often reports no locale at all: then Traditional Chinese,
+// the language the pet was first written in.
 export function pickLocale(lang: Lang, system: string | undefined): Locale {
   if (lang !== 'auto') return lang
-  return /^zh/i.test(system ?? '') ? 'zh-TW' : 'en'
+  return system === undefined || /^zh/i.test(system) ? 'zh-TW' : 'en'
 }
 
 // "2h 5m" until an ISO time; empty once it has passed or cannot be read.

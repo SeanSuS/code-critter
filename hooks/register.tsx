@@ -7,17 +7,16 @@ import type { Character } from './character'
 import { pickLocale, strings, until } from './i18n'
 import type { Lang } from './i18n'
 import { commandState, toolState } from './mimic'
-import { canFeed, feed, level, moodAt, pet, turnDone } from './mood'
+import { level, moodAt, turnDone } from './mood'
 import { CONTEXT_HIGH, recommend, recordUse } from './rank'
 import { scene } from './scene'
 
-const PANE = 'critter'
 const BUILT_IN = 'monkey'
 const LIMIT_HIGH = 90
 const SLEEP_AFTER = 10 * 60_000
 const USER_FOLDER = '.claude/code-critter/characters'
 
-const FRESH: Saved = { mood: 70, moodAt: 0, fedAt: 0, char: BUILT_IN, lang: 'auto', isMuted: false, isAutoOpen: true, uses: {} }
+const FRESH: Saved = { mood: 70, moodAt: 0, char: BUILT_IN, lang: 'auto', isMuted: false, isHidden: false, uses: {} }
 const saved = atom({ plugin: 'code-critter', key: 'saved' } as const, FRESH)
 const usage = atom({ plugin: 'code-critter', key: 'usage' } as const, { model: '' } as Usage)
 const activity = atom({ plugin: 'code-critter', key: 'activity' } as const, { state: 'idle', seq: 0 } as Activity)
@@ -123,13 +122,13 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const stored = (await $.store.get('pet')) as Partial<Saved> | undefined
     const now = await $.clock.now()
-    const pet = await update($, saved, () => ({ ...FRESH, moodAt: now, ...stored }))
+    const kept = await update($, saved, () => ({ ...FRESH, moodAt: now, ...stored }))
     const system = (await $.env.get('LC_ALL')) ?? (await $.env.get('LANG')) ?? undefined
-    const locale = pickLocale(pet.lang, system)
+    const locale = pickLocale(kept.lang, system)
     await update($, view, v => ({ ...v, locale, now }))
     await load($)
     const t = strings(locale)
-    await $.command.register({ name: 'pet', description: t.petDescription, argumentHint: '[help|char|reload|create|lang|mute|autoopen|reset]' })
+    await $.command.register({ name: 'pet', description: t.petDescription, argumentHint: '[help|char|reload|create|lang|mute|reset]' })
     // Another plugin may already own one of these names: the pet works without them.
     await $.command.register({ name: 'explain', description: t.explainDescription }).catch(() => {})
     await $.command.register({ name: 'commit-msg', description: t.commitMsgDescription }).catch(() => {})
@@ -145,7 +144,6 @@ export const register: Register = on => {
       // No figures before the first turn on some hosts; session.measure brings them.
     }
     await act($, 'idle')
-    if (pet.isAutoOpen) $.ui.open({ id: PANE, title: t.title }).catch(() => {})
     return next(e)
   })
 
@@ -200,18 +198,13 @@ export const register: Register = on => {
     }
     if (sub === 'reset') {
       const now = await $.clock.now()
-      await change($, s => ({ ...s, uses: {}, mood: FRESH.mood, moodAt: now, fedAt: 0 }))
+      await change($, s => ({ ...s, uses: {}, mood: FRESH.mood, moodAt: now }))
       return { text: t.reset }
     }
     if (sub === 'mute' || sub === 'unmute') {
       const isMuted = sub === 'mute' ? !(await read($, saved)).isMuted : false
       await change($, s => ({ ...s, isMuted }))
       return { text: isMuted ? t.muted : t.unmuted }
-    }
-    if (sub === 'autoopen') {
-      const isAutoOpen = arg !== 'off'
-      await change($, s => ({ ...s, isAutoOpen }))
-      return { text: t.autoOpen(isAutoOpen) }
     }
     if (sub === 'create') {
       if (!arg) return { text: t.createUsage }
@@ -220,10 +213,9 @@ export const register: Register = on => {
       ask($, `Read ${$.plugin.root}/CHARACTER_PROMPT.md and follow it exactly to draw this character: ${arg}\n\nWrite the JSON to ${folder ?? `~/${USER_FOLDER}`}/<name>/character.json, where <name> is the character's "name". Re-count every row before writing. Reply with the name only.`)
       return { text: t.creating }
     }
-    const isOpen = (await $.ui.panes()).some(pane => pane.id === PANE)
-    if (isOpen) await $.ui.close({ id: PANE })
-    else await $.ui.open({ id: PANE, title: t.title })
-    return { text: isOpen ? t.hidden : t.shown }
+    const isHidden = !(await read($, saved)).isHidden
+    await change($, s => ({ ...s, isHidden }))
+    return { text: isHidden ? t.hidden : t.shown }
   })
 
   on('prompt.submit', async ($, e, next) => {
@@ -262,9 +254,11 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const { Box, Text, Button, Select } = $.ui.resolve(e)
+  // The band above the prompt: the room as a strip, the controls in a row under it.
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const s = await read($, saved)
+    if (e.props.hasSurvey || s.isHidden) return next(e)
+    const { Box, Text, Button, Select } = $.ui.resolve(e)
     const u = await read($, usage)
     const a = await read($, activity)
     const v = await read($, view)
@@ -281,8 +275,7 @@ export const register: Register = on => {
     const bubble = s.isMuted ? undefined : a.bubble ?? nudge
     // At rest the pet shows how it is: worn out by a full context, bored when neglected.
     const state = a.state !== 'idle' ? a.state : isContextHigh ? 'tired' : level(mood) === 'bored' ? 'sad' : 'idle'
-    const hearts = '♥'.repeat(Math.round(mood / 20)) + '♡'.repeat(5 - Math.round(mood / 20))
-    const resets = [
+    const facts = [
       u.model,
       until(u.fiveHourResets, now, v.locale) && t.resetsIn(t.fiveHour, until(u.fiveHourResets, now, v.locale)),
       until(u.sevenDayResets, now, v.locale) && t.resetsIn(t.sevenDay, until(u.sevenDayResets, now, v.locale)),
@@ -292,28 +285,12 @@ export const register: Register = on => {
     const character = characters.get(s.char) ?? characters.get(BUILT_IN)
 
     const controls = (
-      <Box flexDirection="column" gap={1}>
-        {nudge !== undefined && (
-          <Box gap={1}>
-            <Text>{nudge}</Text>
-            {hasCompactNudge && <Button key="nudge-run" onPress={() => run($, 'compact')}>{t.runCompact}</Button>}
-            <Button key="nudge-dismiss" onPress={async () => { await update($, view, w => (hasCompactNudge ? { ...w, isContextDismissed: true } : { ...w, isLimitDismissed: true })) }}>{t.dismiss}</Button>
-          </Box>
-        )}
-        <Box gap={1}>
-          <Text>{t.mood} {hearts}</Text>
-          <Button key="pet" onPress={async () => { const at = await $.clock.now(); await change($, p => ({ ...p, ...pet(p, at) })); await update($, view, w => ({ ...w, now: at })); await act($, 'petted', { forMs: 2500 }) }}>{t.pet}</Button>
-          <Button key="feed" onPress={async () => {
-            const at = await $.clock.now()
-            if (!canFeed(await read($, saved), at)) return
-            await change($, p => ({ ...p, ...feed(p, at) }))
-            await update($, view, w => ({ ...w, now: at }))
-            await act($, 'eat', { forMs: 4000 })
-          }}>{canFeed(s, now) ? t.feed : t.full}</Button>
-        </Box>
-        {resets !== '' && <Text dimColor>{resets}</Text>}
-        <Text>{t.frequent}</Text>
+      <Box flexDirection="column">
         <Box gap={1} flexWrap="wrap">
+          {hasCompactNudge && <Button key="nudge-run" variant="primary" onPress={() => run($, 'compact')}>{t.runCompact}</Button>}
+          {nudge !== undefined && (
+            <Button key="nudge-dismiss" onPress={async () => { await update($, view, w => (hasCompactNudge ? { ...w, isContextDismissed: true } : { ...w, isLimitDismissed: true })) }}>{t.dismiss}</Button>
+          )}
           {commands.map(command => (
             <Button key={`run-${command}`} onPress={async () => {
               // /clear throws the conversation away, so it takes a second press.
@@ -322,18 +299,20 @@ export const register: Register = on => {
               await run($, command)
             }}>{command === 'clear' && v.isConfirmingClear ? t.reallyClear : `/${command}`}</Button>
           ))}
+          {v.names.length > 1 && (
+            <Select key="char" label={t.character} options={v.names.map(value => ({ value }))} value={characters.has(s.char) ? s.char : BUILT_IN} onSelect={async value => { await change($, p => ({ ...p, char: value })) }} />
+          )}
+          {facts !== '' && <Text dimColor>{facts}</Text>}
         </Box>
-        {v.names.length > 1 && (
-          <Select key="char" label={t.character} options={v.names.map(value => ({ value }))} value={characters.has(s.char) ? s.char : BUILT_IN} onSelect={async value => { await change($, p => ({ ...p, char: value })) }} />
-        )}
+        {e.surface === 'terminal' && nudge !== undefined && <Text>{nudge}</Text>}
         {v.problems.map(problem => <Text color="error">{problem}</Text>)}
       </Box>
     )
     if (e.surface === 'terminal' || character === undefined) return controls
     const { Svg } = $.ui.resolve(e)
-    const source = scene({ character, state, bubble, hearts: level(mood) === 'happy' || state === 'petted' || state === 'eat', context: u.context, fiveHour: u.fiveHour, sevenDay: u.sevenDay })
+    const source = scene({ character, state, bubble, hearts: level(mood) === 'happy', context: u.context, fiveHour: u.fiveHour, sevenDay: u.sevenDay })
     return (
-      <Box flexDirection="column" gap={1}>
+      <Box flexDirection="column">
         <Svg source={source} alt={t.alt(character.name, state)} isInteractive />
         {controls}
       </Box>
